@@ -5,12 +5,22 @@ const char *WIFI_SSID = "SlimeServer";
 const char *WIFI_PASS = "95815480";
 const uint16_t UDP_PORT = 5000;
 
-# define TX_BUF_LEN 1
+// packets used for clock offset syncing
+// requests for the sync packet from the esp32
+#define SYNC_REQ  0 
+// esp32 sends T1 timestamp in microseconds as int64
+#define SYNC      1
+// local time 
+#define SYNC_RESP 2
+
+// Packets used for actual ping tests
+#define PING 2
+#define PONG 3
+
 
 WiFiUDP udp;
-uint8_t rxBuffer[TX_BUF_LEN];
-uint8_t txBuffer[TX_BUF_LEN];
-
+uint8_t rxBuffer[8];
+int64_t now;
 
 void setup()
 {
@@ -42,8 +52,10 @@ void loop()
   if (packetSize == 0)
     return;
   udp.read(rxBuffer, packetSize);
+  now = esp_timer_get_time();
 
   udp.beginPacket(udp.remoteIP(), udp.remotePort());
+  udp.write((uint8_t*)&now, sizeof(now));
   udp.endPacket();
 
 }
