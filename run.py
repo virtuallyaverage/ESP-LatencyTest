@@ -5,8 +5,8 @@ import struct
 UDP_IP = "192.168.1.101"
 UDP_PORT = 5000
 
-START_GAP = 0.001
-STEP_GAP = 0.004
+START_GAP = 0.005
+STEP_GAP = 0.005
 NUM_GAPS = 60
 REPETITIONS = 10
 
@@ -22,15 +22,16 @@ def getClockOffset(sock: socket.socket, rep = WARMUP_OFFSET) -> int:
         send_time_us = int(time.perf_counter() * 1_000_000)
         sock.sendto(struct.pack('<q', send_time_us), (UDP_IP, UDP_PORT))
         try:
-            data, _ = sock.recvfrom(255)
-            recv_time_us = int(time.perf_counter() * 1_000_000)
-            esp_time_us = struct.unpack('<q', data[:8])[0]  # ESP32's timestamp
+            while True:
+                data, _ = sock.recvfrom(255)
+                if len(data) >= 8:  # Timestamp response
+                    esp_time_us = struct.unpack('<q', data[:8])[0]
+                    break
             if i != 0: # Skip first packet interruption
                 offset += send_time_us - esp_time_us
         except socket.timeout:
             print(f"{rep+1}, clock offset: timeout")
-            return int(offset / i+1 )
-        
+            return int(offset / (i+1) )
     return int(offset / rep)
 
 
@@ -50,8 +51,12 @@ with open("output.csv", "w") as f:
                 start = time.perf_counter()
                 sock.sendto(struct.pack('<q', int(start * 1_000_000)), (UDP_IP, UDP_PORT))
                 try:
-                    data, _ = sock.recvfrom(255)
-                    esp_time_us = struct.unpack('<q', data[:8])[0]  # ESP32's timestamp
+                    esp_time_us = 0
+                    while True:
+                        data, _ = sock.recvfrom(255)
+                        if len(data) > 1:  # Timestamp response
+                            esp_time_us = struct.unpack('<q', data[:8])[0]
+                            break
                     rtt = (time.perf_counter() - start) * 1000
                     if rep != 0:
                         send_delay.append(((esp_time_us + offset) / 1_000) - (start * 1_000))

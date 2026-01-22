@@ -3,6 +3,34 @@ Simple test for benchmarking UDP latency on an ESP32, specifically testing recie
 
 All results should be taken as rough estimates not absolute values.
 
+### TL;DR
+
+Sending empty wake packets from the MCU to the computer at ~100ms intervals reduces receive latency to ≤40ms without disabling radio sleep.
+
+### Test Data
+
+| Wake Interval | Peak Latency | Histogram Peak |
+|---------------|--------------|----------------|
+| 50ms | ~4ms | ~95 |
+| 75ms | ~22ms | 55, 130, 203 (Δ≈75) |
+| 100ms | ~42ms | ~60 |
+| 150ms | ~86ms | ~62 |
+| 200ms | ~130ms | ~58 |
+
+Raw data: `<interval>_us.csv`
+
+### Findings
+
+Linear regression on wake intervals shows values below ~45ms are indistinguishable from noise; larger intervals yield diminishing returns.
+
+| Parameter | Value |
+|-----------|-------|
+| Slope (a) | 0.848 |
+| Intercept (b) | -40.67 |
+| R² | 0.999 |
+
+Where `x` = wake packet interval (ms), `y` = round-trip latency (ms).
+
 # Testing
 
 After some initial testing using `ping.py`, the most stable rtt results seemed to be from <10ms intervals while discarding the first result. Using these as a baseline, a value can be calculated that shows how "normal" a latency is. 
